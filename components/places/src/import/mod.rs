@@ -5,3 +5,5 @@
 pub mod common;
 pub mod ios_bookmarks;
 pub use ios_bookmarks::import_ios_bookmarks;
+pub mod fennec_bookmarks;
+pub use fennec_bookmarks::import_fennec_bookmarks;
