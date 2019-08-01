@@ -5,6 +5,7 @@
 #![allow(unknown_lints)]
 #![warn(rust_2018_idioms)]
 
+pub mod clients;
 pub mod error;
 mod ffi;
 mod manager;

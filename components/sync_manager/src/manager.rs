@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::collections::HashSet;
+
 #[cfg(feature = "places")]
 use places::PlacesApi;
 // use sql_support::SqlInterruptHandle;
@@ -13,6 +15,8 @@ use logins::PasswordEngine;
 use std::sync::Mutex;
 #[cfg(any(feature = "places", feature = "logins"))]
 use std::sync::{Arc, Weak};
+
+use crate::clients::Command;
 
 pub struct SyncManager {
     #[cfg(feature = "places")]
@@ -39,6 +43,32 @@ impl SyncManager {
     #[cfg(feature = "logins")]
     pub fn set_logins(&mut self, logins: Arc<Mutex<PasswordEngine>>) {
         self.logins = Arc::downgrade(&logins);
+    }
+
+    #[cfg(feature = "logins")]
+    fn apply_logins_command(&self, command: Command) -> Result<()> {
+        match self.logins.upgrade() {
+            Some(logins) => logins.wipe(),
+            None => Err(ErrorKind::ConnectionClosed("passwords".into()).into()),
+        }
+    }
+
+    #[cfg(not(feature = "logins"))]
+    fn apply_logins_command(&self, _: Command) -> Result<()> {
+        Err(ErrorKind::UnsupportedFeature("passwords".into()).into())
+    }
+
+    /// Applies a remote command from another client.
+    pub fn apply_incoming_command(&self, command: Command) -> Result<()> {
+        match command {
+            Command::WipeLogins => self.apply_logins_command(command),
+            _ => Err(ErrorKind::UnsupportedFeature("wipe".into()).into()),
+        }
+    }
+
+    /// Fetches local commands to send to other clients.
+    pub fn fetch_outgoing_commands(&self) -> Result<HashSet<Command>> {
+        Ok(HashSet::new())
     }
 
     pub fn disconnect(&mut self) {
